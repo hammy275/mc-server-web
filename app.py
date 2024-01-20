@@ -1,6 +1,5 @@
 from flask import Flask, jsonify, redirect, request, send_from_directory, session, url_for
 from typing import Any, Union
-import logging
 import os
 import requests
 import secrets
@@ -134,6 +133,7 @@ def oauth2_redirect():
     for key in to_del:
         del config.session_to_discord_id[key]
     config.session_to_discord_id[session_token] = discord_user_id
+    config.maybe_write_datastore()
 
     return redirect(url_for("index"))
 

@@ -1,6 +1,8 @@
+import json
 import logging
 import os
 import sys
+import time
 from typing import List, Type
 
 
@@ -33,6 +35,8 @@ OAUTH_CLIENT_SECRET = get_env("MC_SERVER_WEB_OAUTH_CLIENT_SECRET", str)
 OAUTH_REDIRECT_URI = get_env("MC_SERVER_WEB_OAUTH_REDIRECT_URI", str)
 # Flask secret key. Can be anything. Example: The output of secrets.token_urlsafe(32)
 FLASK_SECRET_KEY = get_env("MC_SERVER_WEB_FLASK_SECRET_KEY", str)
+# Datastore file name. Used to store the session_to_discord_id map to persist between server restarts.
+DATASTORE_NAME = "datastore.json"
 
 # End User-Configured Settings
 
@@ -44,10 +48,20 @@ ADMINS = {}
 WHITELIST_FILE_NAME = "mc_server_web.txt"
 
 session_to_discord_id = {}
+last_datastore_write: int = 0
 
 # Expand vars for server folders
 for i in range(len(SERVER_FOLDERS)):
     SERVER_FOLDERS[i] = os.path.expanduser(os.path.expandvars(SERVER_FOLDERS[i]))
+
+
+def maybe_write_datastore():
+    global last_datastore_write
+    current_time = time.time()
+    if current_time - last_datastore_write > 10:
+        last_datastore_write = current_time
+        with open(DATASTORE_NAME, "w") as f:
+            f.write(json.dumps(session_to_discord_id))
 
 
 def verify_and_load_config() -> str:
@@ -85,5 +99,9 @@ def verify_and_load_config() -> str:
                 ADMINS[discord_id] = friendly_name
         if len(ALLOWED_USERS) == 0:
             return "No allowed users added!"
+
+    if os.path.isfile(DATASTORE_NAME):
+        with open(DATASTORE_NAME, "r") as f:
+            session_to_discord_id.update(json.load(f))
 
     return ""
