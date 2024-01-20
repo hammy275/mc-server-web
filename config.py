@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 import time
-from typing import List, Type
+from typing import List, Type, Union
 
 
 def get_env(key: str, typ: Type) -> any:
@@ -62,6 +62,16 @@ def maybe_write_datastore():
         last_datastore_write = current_time
         with open(DATASTORE_NAME, "w") as f:
             f.write(json.dumps(session_to_discord_id))
+
+
+def name_from_session_token(token: str) -> Union[str, None]:
+    if token not in session_to_discord_id:
+        return None
+    discord_id = session_to_discord_id[token]
+    if discord_id not in ALLOWED_USERS:
+        return None
+    name = ALLOWED_USERS[discord_id]
+    return name
 
 
 def verify_and_load_config() -> str:

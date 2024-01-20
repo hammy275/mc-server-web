@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, redirect, request, send_from_directory, session, url_for
+from flask import Flask, jsonify, redirect, render_template, request, send_from_directory, session, url_for
 from typing import Any, Union
 import os
 import requests
@@ -40,8 +40,8 @@ def is_user_whitelisted(path: str) -> bool:
         return True
     with open(path, "r") as f:
         allowed_users = f.read().split(",")
+        this_user = config.name_from_session_token(session["token"])
         discord_token = config.session_to_discord_id[session["token"]]
-        this_user = config.ALLOWED_USERS[discord_token]
         return this_user in allowed_users or discord_token in config.ADMINS
 
 
@@ -59,12 +59,16 @@ def before_request():
 @app.route("/")
 @app.route("/index.html")
 def index():
-    return send_from_directory("client", "index.html")
+    token = session["token"] if "token" in session else None
+    name = config.name_from_session_token(token)
+    return render_template("index.html",
+                           logged_in="token" in session,
+                           name=name if name is not None else "")
 
 
 @app.route("/index.js")
 def index_js():
-    return send_from_directory("client", "index.js")
+    return send_from_directory("static", "index.js")
 
 
 @app.route("/auth/authorize")
@@ -138,6 +142,12 @@ def oauth2_redirect():
     return redirect(url_for("index"))
 
 
+@app.route("/auth/logout", methods=["POST"])
+def logout():
+    session.pop("token")
+    return make_message("Logged out!", 200)
+
+
 @app.route("/api/list", methods=["POST"])
 def list_servers():
     servers = []
@@ -183,6 +193,7 @@ def launch_server():
         return make_message(f"Failed to start server!", 500)
     app.logger.info(f"Started server {name}")
     return make_message("Server started!", 200)
+
 
 
 if __name__ == "__main__":

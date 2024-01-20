@@ -1,0 +1,21 @@
+<html lang="en">
+    <head>
+        <title>MC Server Web</title>
+    </head>
+    <body>
+        <h1 style="margin-right: 4px">MC Server Web</h1>
+        {% if logged_in %}
+            <p>Hello, {{ name }}!</p>
+            <label for="server_list">Select Server:</label>
+            <select name="server_list" id="server_list">
+                <option>Loading...</option>
+            </select>
+            <button onclick="start_server()" type="button">Start Server</button>
+            <button onclick="logout()" type="button">Logout</button>
+        {% else %}
+            <p>Please log in to use MC Server Web.</p>
+            <button onclick="login()" type="button">Login</button>
+        {% endif %}
+    </body>
+<script src="../static/index.js"></script>
+</html>

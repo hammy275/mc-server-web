@@ -6,7 +6,7 @@ const SERVER_LIST = document.getElementById("server_list")
  * @param data Data to POST. Optional.
  * @returns {Promise<(any | number)[]>} Response data and HTTP error code.
  */
-async function post(url, data) {
+async function post(url, data=null) {
     if (data === undefined || data === null) {
         data = {};
     }
@@ -19,6 +19,20 @@ async function post(url, data) {
     })
     const resp_data = await resp.json();
     return [resp_data, resp.status];
+}
+
+async function start_server() {
+    const name = SERVER_LIST.value;
+    const resp = await post("/api/run", {"name": name});
+}
+
+function login() {
+    window.location.href = "/auth/authorize"
+}
+
+async function logout() {
+    await post("/auth/logout");
+    location.reload();
 }
 
 async function init() {
@@ -37,15 +51,6 @@ async function init() {
         SERVER_LIST.add(opt);
         SERVER_LIST.remove(0);
     }
-}
-
-async function start_server() {
-    const name = SERVER_LIST.value;
-    const resp = await post("/api/run", {"name": name});
-}
-
-function login() {
-    window.location.href = "/auth/authorize"
 }
 
 
