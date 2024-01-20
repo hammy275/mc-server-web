@@ -3,7 +3,7 @@ from typing import Any, Union
 import os
 import requests
 import secrets
-from subprocess import PIPE, Popen, CREATE_NEW_CONSOLE, TimeoutExpired
+from subprocess import PIPE, Popen, CREATE_NO_WINDOW, TimeoutExpired, PIPE
 import sys
 from urllib.parse import urlencode
 
@@ -159,7 +159,8 @@ def list_servers():
             if not is_user_whitelisted(os.path.join(folder, f, config.WHITELIST_FILE_NAME)):
                 continue
             if os.path.isdir(os.path.join(folder, f)):
-                servers.append({"name": f, "running": f in config.running_servers})
+                server_data = {"name": f, "running": f in config.running_servers}
+                servers.append(server_data)
     return jsonify({"message": "Got servers!", "data": sorted(servers, key=lambda s: s["name"])}), 200
 
 
@@ -202,7 +203,8 @@ def manage_server():
         if script_path is None:
             return make_message(f"Server does not contain a startup script.", 500)
         try:
-            p = Popen(script_path, cwd=path, creationflags=CREATE_NEW_CONSOLE, stdin=PIPE)
+            p = Popen(script_path, cwd=path, stdin=PIPE, stdout=PIPE, stderr=PIPE, creationflags=CREATE_NO_WINDOW,
+                      universal_newlines=True)
         except FileNotFoundError:
             return make_message(f"Failed to start server!", 500)
         if p.poll():
@@ -218,7 +220,7 @@ def manage_server():
             return make_message(f"Server {name} not running!", 400)
         proc = config.running_servers[name]
         try:
-            proc.communicate(input=b"stop\n", timeout=10)
+            proc.communicate(input="stop\n", timeout=10)
         except TimeoutExpired:
             return make_message("Server failed to fully shut down. It's likely fully shut down, though.", 500)
         return make_message("Server shut down successfully!", 200)
