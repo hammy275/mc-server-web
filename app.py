@@ -68,15 +68,15 @@ def oauth2_authorize():
 def oauth2_redirect():
     # If there was an error (expected) or state is missing (unexpected)
     if "error" in request.args or "state" not in request.args:
-        return "There was an error (unknown) while logging in!"
+        return "There was an error (unknown) while logging in!", 500
 
     # If state mismatches
     if request.args["state"] != session.get("state"):
-        return "There was an error (state mismatch) while logging in!"
+        return "There was an error (state mismatch) while logging in!", 500
 
     # If code not found
     if "code" not in request.args:
-        return "There was an error (missing code) while logging in!"
+        return "There was an error (missing code) while logging in!", 500
 
     # Get access token from authorization code
     r = requests.post(config.OAUTH_TOKEN_URL, data={
@@ -87,19 +87,23 @@ def oauth2_redirect():
         "redirect_uri": url_for("oauth2_redirect", _external=True)
     }, headers={"Accept": "application/json"})
     if r.status_code != 200:
-        return "There was an error (failed token retrieval) while logging in!"
+        return "There was an error (failed token retrieval) while logging in!", 500
     token = r.json().get("access_token", None)
     token_type = r.json().get("token_type", None)
     if token is None or token_type is None:
-        return "There was an error (token or token type not found) while logging in!"
+        return "There was an error (token or token type not found) while logging in!", 500
 
     # Get user ID from token
     r = requests.get(config.API_ENDPOINT + "/users/@me", headers={
         "authorization": f"{token_type} {token}"
     })
     if r.status_code != 200:
-        return "There was an error (failed to get user ID) while logging in!"
+        return "There was an error (failed to get user ID) while logging in!", 500
     discord_user_id = r.json()["id"]
+
+    if discord_user_id not in config.ALLOWED_USERS:
+        return "You are not authorized to use MC Server Web!", 403
+
     session_token = secrets.token_urlsafe(128)
 
     session["token"] = session_token
@@ -159,7 +163,7 @@ def launch_server():
 
 
 if __name__ == "__main__":
-    config_err: str = config.verify_config()
+    config_err: str = config.verify_and_load_config()
     if config_err:
         app.logger.critical(config_err)
         sys.exit(1)

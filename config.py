@@ -25,9 +25,9 @@ PORT: int = get_env("MC_SERVER_WEB_PORT", int)
 SERVER_FOLDERS: List[str] = get_env("MC_SERVER_WEB_FOLDERS", str).split(",")
 # Comma-separated list of all names of potential startup scripts to start the server. Example: "run.bat,start.bat"
 STARTUP_SCRIPT_NAMES: List[str] = get_env("MC_SERVER_WEB_SCRIPTS", str).split(",")
-# OAuth Client ID from Discord.
+# OAuth Client ID from the Discord application.
 OAUTH_CLIENT_ID = get_env("MC_SERVER_WEB_OAUTH_CLIENT_ID", str)
-# OAuth Client Secret from Discord.
+# OAuth Client Secret from the Discord application.
 OAUTH_CLIENT_SECRET = get_env("MC_SERVER_WEB_OAUTH_CLIENT_SECRET", str)
 # Redirect URI. Example: http://mydomain.com/auth/redirect
 OAUTH_REDIRECT_URI = get_env("MC_SERVER_WEB_OAUTH_REDIRECT_URI", str)
@@ -39,6 +39,7 @@ FLASK_SECRET_KEY = get_env("MC_SERVER_WEB_FLASK_SECRET_KEY", str)
 OAUTH_AUTH_URL = "https://discord.com/oauth2/authorize"
 OAUTH_TOKEN_URL = "https://discord.com/api/oauth2/token"
 API_ENDPOINT = "https://discord.com/api/v10"
+ALLOWED_USERS = {}
 
 session_to_discord_id = {}
 
@@ -47,8 +48,8 @@ for i in range(len(SERVER_FOLDERS)):
     SERVER_FOLDERS[i] = os.path.expanduser(os.path.expandvars(SERVER_FOLDERS[i]))
 
 
-def verify_config() -> str:
-    """Verify that this config file is correct, or at least correct enough.
+def verify_and_load_config() -> str:
+    """Verify that this config file is correct, or at least correct enough, then load config files.
 
     Returns:
         An empty string if the config file is OK or an error message if it isn't.
@@ -58,4 +59,21 @@ def verify_config() -> str:
     for fol in SERVER_FOLDERS:
         if not os.path.exists(fol):
             return f"Server folder {fol} does not exist!"
+    if not os.path.isfile("user_ids.txt"):
+        with open("user_ids.txt", "w") as f:
+            f.write("123456789012345678=Me\n876543210987654321=MyFriend")
+        return "Generated user_ids.txt. Please fill it in with Discord User IDs and friendly names for you to use!"
+    else:
+        with open("user_ids.txt", "r") as f:
+            lines = f.readlines()
+        for line in lines:
+            discord_id, friendly_name = line.split("=")
+            if discord_id in ALLOWED_USERS:
+                return f"Discord ID {discord_id} found multiple times in user_ids.txt!"
+            elif friendly_name in ALLOWED_USERS.values():
+                return f"Friendly name {friendly_name} found multiple times in user_ids.txt!"
+            ALLOWED_USERS[discord_id] = friendly_name
+        if len(ALLOWED_USERS) == 0:
+            return "No allowed users added!"
+
     return ""

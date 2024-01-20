@@ -14,4 +14,5 @@ Thanks to <https://blog.miguelgrinberg.com/post/oauth-authentication-with-flask-
 
 1. `python -m pip install -r requirements.txt` to install requirements. This is tested with Python 3.12, though earlier versions will probably work.
 2. Add the environment variables as mentioned in `config.py`.
-3. `python app.py` to run the server.
+3. `python app.py` to generate `user_ids.txt`
+4. Fill in `user_ids.txt`, with user IDs from Discord and friendly names that you'll use in other places. Any user not here will NOT be able to use MC Server Web.
