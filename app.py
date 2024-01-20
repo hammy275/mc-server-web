@@ -28,6 +28,24 @@ def get_val_err(key: str) -> Any:
     return val
 
 
+def is_user_whitelisted(path: str) -> bool:
+    """Whether the current request's user is whitelisted based on the supplied file path.
+
+    Args:
+        path: File path to whitelist file. It's okay if the file does not exist.
+
+    Returns:
+        Whether the current user is whitelisted in the whitelist, or True if the whitelist isn't found.
+    """
+    if not os.path.exists(path) or not os.path.isfile(path):
+        return True
+    with open(path, "r") as f:
+        allowed_users = f.read().split(",")
+        discord_token = config.session_to_discord_id[session["token"]]
+        this_user = config.ALLOWED_USERS[discord_token]
+        return this_user in allowed_users
+
+
 @app.before_request
 def before_request():
     # If GET, handle session (clear token if server restarted, etc.)
@@ -124,8 +142,13 @@ def oauth2_redirect():
 def list_servers():
     servers = []
     for folder in config.SERVER_FOLDERS:
+        if not is_user_whitelisted(os.path.join(folder, config.WHITELIST_FILE_NAME)):
+            continue
         for f in os.listdir(folder):
-            servers.append(f)
+            if not is_user_whitelisted(os.path.join(folder, f, config.WHITELIST_FILE_NAME)):
+                continue
+            if os.path.isdir(os.path.join(folder, f)):
+                servers.append(f)
     return jsonify({"message": "Got servers!", "data": sorted(servers)}), 200
 
 

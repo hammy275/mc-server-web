@@ -40,6 +40,7 @@ OAUTH_AUTH_URL = "https://discord.com/oauth2/authorize"
 OAUTH_TOKEN_URL = "https://discord.com/api/oauth2/token"
 API_ENDPOINT = "https://discord.com/api/v10"
 ALLOWED_USERS = {}
+WHITELIST_FILE_NAME = "mc_server_web.txt"
 
 session_to_discord_id = {}
 
@@ -68,6 +69,7 @@ def verify_and_load_config() -> str:
             lines = f.readlines()
         for line in lines:
             discord_id, friendly_name = line.split("=")
+            friendly_name = friendly_name.rstrip()
             if discord_id in ALLOWED_USERS:
                 return f"Discord ID {discord_id} found multiple times in user_ids.txt!"
             elif friendly_name in ALLOWED_USERS.values():

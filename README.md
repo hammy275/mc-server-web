@@ -16,3 +16,6 @@ Thanks to <https://blog.miguelgrinberg.com/post/oauth-authentication-with-flask-
 2. Add the environment variables as mentioned in `config.py`.
 3. `python app.py` to generate `user_ids.txt`
 4. Fill in `user_ids.txt`, with user IDs from Discord and friendly names that you'll use in other places. Any user not here will NOT be able to use MC Server Web.
+5. Optional: For each server, add a `mc_server_web.txt` file, filled with comma-separated friendly names. For example: `Me,MyFriend`. Any users not in this list will not be able to start this server, or even see it in the list view!
+6. Optional: For each server folder (the folders configured in `config.py`'s `SERVER_FOLDERS`), add a `mc_server_web.txt` file, filled with comma-separted friendly names, as in step 5. Any users not in this list will not be able to start any server in this folder, even if they are present in an individual server's whitelist in step 5.
+7. `python app.py` to run MC Server Web.
