@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from typing import Any, Union
 import logging
 import os
@@ -23,6 +23,26 @@ def get_val_err(key: str) -> Any:
     if val is None:
         return make_message(f"Value {key} not found!", 400)
     return val
+
+
+@app.route("/")
+@app.route("/index.html")
+def index():
+    return send_from_directory("client", "index.html")
+
+
+@app.route("/index.js")
+def index_js():
+    return send_from_directory("client", "index.js")
+
+
+@app.route("/api/list", methods=["POST"])
+def list_servers():
+    servers = []
+    for folder in config.SERVER_FOLDERS:
+        for f in os.listdir(folder):
+            servers.append(f)
+    return jsonify({"message": "Got servers!", "data": sorted(servers)}), 200
 
 
 @app.route("/api/run", methods=["POST"])
