@@ -3,7 +3,7 @@ from typing import Any, Union
 import os
 import requests
 import secrets
-from subprocess import PIPE, Popen, CREATE_NEW_CONSOLE
+from subprocess import PIPE, Popen, CREATE_NEW_CONSOLE, TimeoutExpired
 import sys
 from urllib.parse import urlencode
 
@@ -208,8 +208,11 @@ def manage_server():
         if name not in config.running_servers:
             return make_message(f"Server {name} not running!", 400)
         proc = config.running_servers[name]
-        proc.communicate(input=b"stop\n")
-        return make_message("Server shutting down...", 200)
+        try:
+            proc.communicate(input=b"stop\n", timeout=10)
+        except TimeoutExpired:
+            return make_message("Server failed to fully shut down. It's likely fully shut down, though.", 500)
+        return make_message("Server shut down successfully!", 200)
 
 
 if __name__ == "__main__":

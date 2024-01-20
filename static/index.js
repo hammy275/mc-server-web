@@ -3,6 +3,8 @@ const RUNNING_SERVERS_TITLE = document.getElementById("running_servers_title");
 const RUNNING_SERVERS_LIST = document.getElementById("running_servers_list");
 const START_STOP_BUTTON = document.getElementById("start_stop_button");
 const WELCOME_MESSAGE = document.getElementById("welcome_message");
+const STATUS = document.getElementById("status");
+const BACKGROUND_STATUS = document.getElementById("background_status");
 
 const running_servers = [];
 
@@ -10,9 +12,10 @@ const running_servers = [];
  *
  * @param url String of URL to POST to.
  * @param data Data to POST. Optional.
+ * @param show_alert Whether the response should show an alert.
  * @returns {Promise<(any | number)[]>} Response data and HTTP error code.
  */
-async function post(url, data=null) {
+async function post(url, data=null, show_alert=true) {
     if (data === undefined || data === null) {
         data = {};
     }
@@ -24,6 +27,9 @@ async function post(url, data=null) {
         body: JSON.stringify(data)
     })
     const resp_data = await resp.json();
+    if (show_alert) {
+        window.alert(resp_data.message);
+    }
     return [resp_data, resp.status];
 }
 
@@ -32,10 +38,13 @@ async function start_stop() {
     let action = "";
     if (running_servers.includes(name)) {
         action = "stop";
+        set_status(`Stopping server ${name}`);
     } else {
         action = "start";
+        set_status(`Starting server ${name}`);
     }
     await post("/api/manage", {"name": name, "action": action});
+    set_status(null);
     fetch_servers();
 }
 
@@ -44,12 +53,14 @@ function login() {
 }
 
 async function logout() {
+    set_status("Logging out...");
     await post("/auth/logout");
     location.reload();
 }
 
 async function fetch_servers() {
-    const resp = await post("/api/list");
+    set_status("Fetching server list", true);
+    const resp = await post("/api/list", null, false);
     const old_selected = SERVER_LIST.value;
     SERVER_LIST.length = 0;
     if (resp[1] === 200) {
@@ -83,12 +94,12 @@ async function fetch_servers() {
             RUNNING_SERVERS_TITLE.style.display = "block";
             RUNNING_SERVERS_LIST.style.display = "block";
         }
-
     } else {
         const opt = document.createElement("option");
         opt.text = "Error while retrieving servers!";
         SERVER_LIST.add(opt);
     }
+    set_status(null, true);
 }
 
 function is_logged_in() {
@@ -102,6 +113,15 @@ function on_server_select_change() {
     } else {
         START_STOP_BUTTON.innerText = "Start Server";
     }
+}
+
+function set_status(msg, is_background=false) {
+    const elem = is_background ? BACKGROUND_STATUS : STATUS;
+    const start_text = is_background ? "Background Status: " : "Status: ";
+    if (msg === null || msg === undefined) {
+        msg = is_background ? "Performing no background tasks..." : "Waiting to do something...";
+    }
+    elem.innerText = start_text + msg;
 }
 
 function init() {

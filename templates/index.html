@@ -15,6 +15,11 @@
             <h3 style="display: none" id="running_servers_title">Running Servers:</h3>
             <ul style="display: none" id="running_servers_list">
             </ul>
+            <br><br><br>
+            <h3>Status Information:</h3>
+            <h4>Represents the actions currently being taken by the web browser, whether on your behalf or as a background task.</h4>
+            <p id="status">Status: Waiting to do something...</p>
+            <p id="background_status">Background Status: Performing no background tasks...</p>
         {% else %}
             <p>Please log in to use MC Server Web.</p>
             <button onclick="login()" type="button">Login</button>
