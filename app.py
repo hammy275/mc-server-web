@@ -176,9 +176,18 @@ def manage_server():
             break
         else:
             path = None
-    if path is not None and not name.isalnum():  # Before the is None check so we don't leak that the path exists
-        return make_message(f"Path is not alphanumeric.", 400)
-    elif path is None:
+    possible_path_traversal: bool = True
+    for folder in config.SERVER_FOLDERS:
+        try:
+            common_path = os.path.commonpath([path, folder])
+        except ValueError:
+            break
+        if common_path.startswith(folder):
+            possible_path_traversal = False
+            break
+    if possible_path_traversal:
+        return make_message(f"Path {path} invalid!", 400)
+    if path is None:
         return make_message(f"Path {path} not found! This isn't a server that can be launched.", 404)
 
     # Ifs for which action we're performing
