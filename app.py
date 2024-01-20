@@ -43,7 +43,7 @@ def is_user_whitelisted(path: str) -> bool:
         allowed_users = f.read().split(",")
         discord_token = config.session_to_discord_id[session["token"]]
         this_user = config.ALLOWED_USERS[discord_token]
-        return this_user in allowed_users
+        return this_user in allowed_users or discord_token in config.ADMINS
 
 
 @app.before_request

@@ -40,6 +40,7 @@ OAUTH_AUTH_URL = "https://discord.com/oauth2/authorize"
 OAUTH_TOKEN_URL = "https://discord.com/api/oauth2/token"
 API_ENDPOINT = "https://discord.com/api/v10"
 ALLOWED_USERS = {}
+ADMINS = {}
 WHITELIST_FILE_NAME = "mc_server_web.txt"
 
 session_to_discord_id = {}
@@ -62,19 +63,26 @@ def verify_and_load_config() -> str:
             return f"Server folder {fol} does not exist!"
     if not os.path.isfile("user_ids.txt"):
         with open("user_ids.txt", "w") as f:
-            f.write("123456789012345678=Me\n876543210987654321=MyFriend")
+            f.write("123456789012345678~MeTheAdmin\n876543210987654321=MyFriend")
         return "Generated user_ids.txt. Please fill it in with Discord User IDs and friendly names for you to use!"
     else:
         with open("user_ids.txt", "r") as f:
             lines = f.readlines()
         for line in lines:
-            discord_id, friendly_name = line.split("=")
+            admin: bool = False
+            if "=" in line:
+                discord_id, friendly_name = line.split("=")
+            elif "~" in line:
+                discord_id, friendly_name = line.split("~")
+                admin = True
             friendly_name = friendly_name.rstrip()
             if discord_id in ALLOWED_USERS:
                 return f"Discord ID {discord_id} found multiple times in user_ids.txt!"
             elif friendly_name in ALLOWED_USERS.values():
                 return f"Friendly name {friendly_name} found multiple times in user_ids.txt!"
             ALLOWED_USERS[discord_id] = friendly_name
+            if admin:
+                ADMINS[discord_id] = friendly_name
         if len(ALLOWED_USERS) == 0:
             return "No allowed users added!"
 
