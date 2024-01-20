@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import sys
+from threading import Lock
 import time
 from typing import List, Type, Union
 
@@ -49,10 +50,28 @@ WHITELIST_FILE_NAME = "mc_server_web.txt"
 
 session_to_discord_id = {}
 last_datastore_write: int = 0
+running_servers = {}
+last_server_poll: int = 0
+running_servers_lock = Lock()
 
 # Expand vars for server folders
 for i in range(len(SERVER_FOLDERS)):
     SERVER_FOLDERS[i] = os.path.expanduser(os.path.expandvars(SERVER_FOLDERS[i]))
+
+
+def maybe_poll_running_servers():
+    global last_server_poll
+    current_time = time.time()
+    if current_time - last_server_poll > 3:
+        last_server_poll = current_time
+        running_servers_lock.acquire()
+        to_remove = []
+        for name, process in running_servers.items():
+            if process.poll() is not None:
+                to_remove.append(name)
+        for name in to_remove:
+            del running_servers[name]
+        running_servers_lock.release()
 
 
 def maybe_write_datastore():

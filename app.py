@@ -3,7 +3,7 @@ from typing import Any, Union
 import os
 import requests
 import secrets
-from subprocess import Popen, CREATE_NEW_CONSOLE
+from subprocess import PIPE, Popen, CREATE_NEW_CONSOLE
 import sys
 from urllib.parse import urlencode
 
@@ -150,6 +150,7 @@ def logout():
 
 @app.route("/api/list", methods=["POST"])
 def list_servers():
+    config.maybe_poll_running_servers()
     servers = []
     for folder in config.SERVER_FOLDERS:
         if not is_user_whitelisted(os.path.join(folder, config.WHITELIST_FILE_NAME)):
@@ -158,13 +159,16 @@ def list_servers():
             if not is_user_whitelisted(os.path.join(folder, f, config.WHITELIST_FILE_NAME)):
                 continue
             if os.path.isdir(os.path.join(folder, f)):
-                servers.append(f)
-    return jsonify({"message": "Got servers!", "data": sorted(servers)}), 200
+                servers.append({"name": f, "running": f in config.running_servers})
+    return jsonify({"message": "Got servers!", "data": sorted(servers, key=lambda s: s["name"])}), 200
 
 
-@app.route("/api/run", methods=["POST"])
-def launch_server():
+@app.route("/api/manage", methods=["POST"])
+def manage_server():
     name: str = get_val_err("name")
+    action: str = get_val_err("action")
+    if action not in ["start", "stop"]:
+        return make_message(f"Invalid server action!", 400)
     path: Union[str, None] = None
     for folder in config.SERVER_FOLDERS:
         path = os.path.join(folder, name)
@@ -172,28 +176,40 @@ def launch_server():
             break
         else:
             path = None
-    if path is not None and not name.isalnum():  # Before is None check so we don't leak that the path exists
+    if path is not None and not name.isalnum():  # Before the is None check so we don't leak that the path exists
         return make_message(f"Path is not alphanumeric.", 400)
     elif path is None:
         return make_message(f"Path {path} not found! This isn't a server that can be launched.", 404)
-    script_path: Union[str, None] = None
-    for script_name in config.STARTUP_SCRIPT_NAMES:
-        script_path = os.path.join(path, script_name)
-        if os.path.exists(script_path) and os.path.isfile(script_path):
-            break
-        else:
-            script_path = None
-    if script_path is None:
-        return make_message(f"Server does not contain a startup script.", 500)
-    try:
-        p = Popen(script_path, creationflags=CREATE_NEW_CONSOLE)
-    except FileNotFoundError:
-        return make_message(f"Failed to start server!", 500)
-    if p.poll():
-        return make_message(f"Failed to start server!", 500)
-    app.logger.info(f"Started server {name}")
-    return make_message("Server started!", 200)
 
+    # Ifs for which action we're performing
+    if action == "start":
+        script_path: Union[str, None] = None
+        for script_name in config.STARTUP_SCRIPT_NAMES:
+            script_path = os.path.join(path, script_name)
+            if os.path.exists(script_path) and os.path.isfile(script_path):
+                break
+            else:
+                script_path = None
+        if script_path is None:
+            return make_message(f"Server does not contain a startup script.", 500)
+        try:
+            p = Popen(script_path, cwd=path, creationflags=CREATE_NEW_CONSOLE, stdin=PIPE)
+        except FileNotFoundError:
+            return make_message(f"Failed to start server!", 500)
+        if p.poll():
+            return make_message(f"Failed to start server!", 500)
+        config.running_servers_lock.acquire()
+        config.running_servers[name] = p
+        config.running_servers_lock.release()
+        app.logger.info(f"Started server {name}")
+        return make_message("Server started!", 200)
+    elif action == "stop":
+        config.maybe_poll_running_servers()
+        if name not in config.running_servers:
+            return make_message(f"Server {name} not running!", 400)
+        proc = config.running_servers[name]
+        proc.communicate(input=b"stop\n")
+        return make_message("Server shutting down...", 200)
 
 
 if __name__ == "__main__":

@@ -5,13 +5,16 @@
     <body>
         <h1 style="margin-right: 4px">MC Server Web</h1>
         {% if logged_in %}
-            <p>Hello, {{ name }}!</p>
+            <p id="welcome_message">Hello, {{ name }}!</p>
             <label for="server_list">Select Server:</label>
-            <select name="server_list" id="server_list">
+            <select onchange="on_server_select_change()" name="server_list" id="server_list">
                 <option>Loading...</option>
             </select>
-            <button onclick="start_server()" type="button">Start Server</button>
+            <button id="start_stop_button" onclick="start_stop()" type="button">Start Server</button>
             <button onclick="logout()" type="button">Logout</button>
+            <h3 style="display: none" id="running_servers_title">Running Servers:</h3>
+            <ul style="display: none" id="running_servers_list">
+            </ul>
         {% else %}
             <p>Please log in to use MC Server Web.</p>
             <button onclick="login()" type="button">Login</button>
