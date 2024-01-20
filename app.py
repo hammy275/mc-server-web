@@ -221,4 +221,4 @@ if __name__ == "__main__":
         app.logger.critical(config_err)
         sys.exit(1)
     app.secret_key = config.FLASK_SECRET_KEY
-    app.run("0.0.0.0", config.PORT, debug=True)
+    app.run("0.0.0.0", config.PORT)
