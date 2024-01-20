@@ -25,9 +25,22 @@ PORT: int = get_env("MC_SERVER_WEB_PORT", int)
 SERVER_FOLDERS: List[str] = get_env("MC_SERVER_WEB_FOLDERS", str).split(",")
 # Comma-separated list of all names of potential startup scripts to start the server. Example: "run.bat,start.bat"
 STARTUP_SCRIPT_NAMES: List[str] = get_env("MC_SERVER_WEB_SCRIPTS", str).split(",")
+# OAuth Client ID from Discord.
+OAUTH_CLIENT_ID = get_env("MC_SERVER_WEB_OAUTH_CLIENT_ID", str)
+# OAuth Client Secret from Discord.
+OAUTH_CLIENT_SECRET = get_env("MC_SERVER_WEB_OAUTH_CLIENT_SECRET", str)
+# Redirect URI. Example: http://mydomain.com/auth/redirect
+OAUTH_REDIRECT_URI = get_env("MC_SERVER_WEB_OAUTH_REDIRECT_URI", str)
+# Flask secret key. Can be anything. Example: The output of secrets.token_urlsafe(32)
+FLASK_SECRET_KEY = get_env("MC_SERVER_WEB_FLASK_SECRET_KEY", str)
 
 # End User-Configured Settings
 
+OAUTH_AUTH_URL = "https://discord.com/oauth2/authorize"
+OAUTH_TOKEN_URL = "https://discord.com/api/oauth2/token"
+API_ENDPOINT = "https://discord.com/api/v10"
+
+session_to_discord_id = {}
 
 # Expand vars for server folders
 for i in range(len(SERVER_FOLDERS)):

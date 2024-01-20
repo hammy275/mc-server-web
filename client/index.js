@@ -31,12 +31,21 @@ async function init() {
             SERVER_LIST.add(opt);
         }
         SERVER_LIST.remove(0);
+    } else {
+        const opt = document.createElement("option");
+        opt.text = "Not Logged In!";
+        SERVER_LIST.add(opt);
+        SERVER_LIST.remove(0);
     }
 }
 
 async function start_server() {
     const name = SERVER_LIST.value;
     const resp = await post("/api/run", {"name": name});
+}
+
+function login() {
+    window.location.href = "/auth/authorize"
 }
 
 
