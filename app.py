@@ -3,8 +3,9 @@ from typing import Any, Union
 import os
 import requests
 import secrets
-from subprocess import PIPE, Popen, CREATE_NO_WINDOW, TimeoutExpired, PIPE
+from subprocess import DEVNULL, PIPE, Popen, CREATE_NO_WINDOW, TimeoutExpired
 import sys
+import threading
 from urllib.parse import urlencode
 
 import config
@@ -203,8 +204,12 @@ def manage_server():
         if script_path is None:
             return make_message(f"Server does not contain a startup script.", 500)
         try:
-            p = Popen(script_path, cwd=path, stdin=PIPE, stdout=PIPE, stderr=PIPE, creationflags=CREATE_NO_WINDOW,
-                      universal_newlines=True)
+            # stdout and stderr MUST be sent to DEVNULL. From testing:
+            # Vanilla 1.20.4 servers don't boot if stdout and stderr aren't sent somewhere
+            # Forge 1.20.1 servers don't boot if stdout or stderr are sent to PIPE
+            # Haven't whether "stdout and stderr" is an "or" instead.
+            p = Popen([script_path], cwd=path, stdin=PIPE, stdout=DEVNULL, stderr=DEVNULL,
+                      creationflags=CREATE_NO_WINDOW, universal_newlines=True)
         except FileNotFoundError:
             return make_message(f"Failed to start server!", 500)
         if p.poll():
@@ -222,8 +227,9 @@ def manage_server():
         try:
             proc.communicate(input="stop\n", timeout=10)
         except TimeoutExpired:
-            return make_message("Server failed to fully shut down. It's likely fully shut down, though.", 500)
-        return make_message("Server shut down successfully!", 200)
+            return make_message("Server stop command sent, but server didn't stop within 10 seconds! It's likely "
+                                "shutting down.", 200)
+        return make_message("Server stopped!", 200)
 
 
 if __name__ == "__main__":
