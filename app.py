@@ -5,7 +5,6 @@ import requests
 import secrets
 from subprocess import DEVNULL, PIPE, Popen, CREATE_NO_WINDOW, TimeoutExpired
 import sys
-import threading
 from urllib.parse import urlencode
 
 import config
@@ -44,6 +43,18 @@ def is_user_whitelisted(path: str) -> bool:
         this_user = config.name_from_session_token(session["token"])
         discord_token = config.session_to_discord_id[session["token"]]
         return this_user in allowed_users or discord_token in config.ADMINS
+
+
+def send_command(process: Popen, command: str):
+    """Run a command on a given process representing a Minecraft server.
+
+    Args:
+        process: Process instance for a Minecraft server.
+        command: The command to run.
+
+    """
+    process.stdin.write(command + "\n")
+    process.stdin.flush()
 
 
 @app.before_request
@@ -207,8 +218,11 @@ def manage_server():
             # stdout and stderr MUST be sent to DEVNULL. From testing:
             # Vanilla 1.20.4 servers don't boot if stdout and stderr aren't sent somewhere
             # Forge 1.20.1 servers don't boot if stdout or stderr are sent to PIPE
-            # Haven't whether "stdout and stderr" is an "or" instead.
-            p = Popen([script_path], cwd=path, stdin=PIPE, stdout=DEVNULL, stderr=DEVNULL,
+            # Haven't checked whether "stdout and stderr" is an "or" instead.
+            args = [script_path]
+            if script_path.endswith(".ps1"):
+                args = ["powershell.exe", script_path]
+            p = Popen(args, cwd=path, stdin=PIPE, stdout=DEVNULL, stderr=DEVNULL,
                       creationflags=CREATE_NO_WINDOW, universal_newlines=True)
         except FileNotFoundError:
             return make_message(f"Failed to start server!", 500)
