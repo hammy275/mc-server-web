@@ -4,9 +4,17 @@ Control Minecraft servers from a web UI and allow others to as well!
 
 This project is mainly intended for friend groups with one person doing DIY server hosting.
 
-## Note
+## Notes and Limitations
 
-This was built for personal use. PRs likely will not be accepted, and any support is very unlikely to be provided. Bug reports are still very much accepted, though, and you're of course free to do anything as permitted by the license located in the `LICENSE` file.
+### Scope
+
+This project is not intended for scale. There are _many_ design decisions that were made for the sake of simplicity over scalability or reliability. The intended scope for this software is to be run on a single machine, with the target audience being a group of friends to the host.
+
+### On Accepting PRs
+
+This was built for personal use. PRs likely will not be accepted, and any support is very unlikely to be provided. Bug reports are still very much accepted, though, and you're of course free to do anything with this software so long as you follow the license located in the `LICENSE` file of this repository.
+
+### Thanks
 
 Thanks to <https://blog.miguelgrinberg.com/post/oauth-authentication-with-flask-in-2023> for the understanding and implementation of OAuth2. The code for the tutorial is found [here](https://github.com/miguelgrinberg/flask-oauth-example). 
 
