@@ -4,7 +4,9 @@ import os
 import sys
 from threading import Lock
 import time
-from typing import List, Type, Union
+from typing import List, Type, Union, Dict
+
+from RunningServer import RunningServer
 
 
 def get_env(key: str, typ: Type) -> any:
@@ -38,6 +40,8 @@ OAUTH_REDIRECT_URI = get_env("MC_SERVER_WEB_OAUTH_REDIRECT_URI", str)
 FLASK_SECRET_KEY = get_env("MC_SERVER_WEB_FLASK_SECRET_KEY", str)
 # Datastore file name. Used to store the session_to_discord_id map to persist between server restarts.
 DATASTORE_NAME = "datastore.json"
+# Maximum number of lines to send from the log to clients
+MAX_LOG_LINES = 10
 
 # End User-Configured Settings
 
@@ -50,7 +54,7 @@ WHITELIST_FILE_NAME = "mc_server_web.txt"
 
 session_to_discord_id = {}
 last_datastore_write: int = 0
-running_servers = {}
+running_servers: Dict[str, RunningServer] = {}
 last_server_poll: int = 0
 running_servers_lock = Lock()
 
@@ -66,11 +70,22 @@ def maybe_poll_running_servers():
         last_server_poll = current_time
         running_servers_lock.acquire()
         to_remove = []
-        for name, process in running_servers.items():
+        for name, running_server in running_servers.items():
+            process = running_server.process
             if process.poll() is not None:
                 to_remove.append(name)
         for name in to_remove:
             del running_servers[name]
+        for name, running_server in running_servers.items():
+            logs_path = os.path.join(running_server.folder_path, "logs")
+            if os.path.isdir(logs_path):
+                log_path = os.path.join(logs_path, "latest.log")
+                if os.path.isfile(log_path):
+                    with open(log_path, "r") as f:
+                        lines = f.readlines()
+                        if len(lines) >= MAX_LOG_LINES:
+                            lines = lines[-MAX_LOG_LINES:]
+                        running_server.last_log_lines = "".join(lines)
         running_servers_lock.release()
 
 

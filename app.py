@@ -8,6 +8,7 @@ import sys
 from urllib.parse import urlencode
 
 import config
+from RunningServer import RunningServer
 
 app = Flask(__name__)
 
@@ -171,7 +172,10 @@ def list_servers():
             if not is_user_whitelisted(os.path.join(folder, f, config.WHITELIST_FILE_NAME)):
                 continue
             if os.path.isdir(os.path.join(folder, f)):
-                server_data = {"name": f, "running": f in config.running_servers}
+                running: bool = f in config.running_servers
+                server_data = {"name": f, "running": running}
+                if running:
+                    server_data["running_data"] = config.running_servers[f].get_running_data()
                 servers.append(server_data)
     return jsonify({"message": "Got servers!", "data": sorted(servers, key=lambda s: s["name"])}), 200
 
@@ -229,7 +233,8 @@ def manage_server():
         if p.poll():
             return make_message(f"Failed to start server!", 500)
         config.running_servers_lock.acquire()
-        config.running_servers[name] = p
+        config.running_servers[name] = RunningServer(name=name, folder_path=os.path.dirname(script_path),
+                                                     process=p)
         config.running_servers_lock.release()
         app.logger.info(f"Started server {name}")
         return make_message("Server started!", 200)
@@ -237,7 +242,7 @@ def manage_server():
         config.maybe_poll_running_servers()
         if name not in config.running_servers:
             return make_message(f"Server {name} not running!", 400)
-        proc = config.running_servers[name]
+        proc = config.running_servers[name].process
         try:
             proc.communicate(input="stop\n", timeout=10)
         except TimeoutExpired:

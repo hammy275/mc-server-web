@@ -5,8 +5,12 @@ const START_STOP_BUTTON = document.getElementById("start_stop_button");
 const WELCOME_MESSAGE = document.getElementById("welcome_message");
 const STATUS = document.getElementById("status");
 const BACKGROUND_STATUS = document.getElementById("background_status");
+const SERVER_DATA = document.getElementById("server_data");
+const SERVER_DATA_TITLE = document.getElementById("server_data_title");
+const SERVER_DATA_LOG = document.getElementById("server_data_log");
 
 const running_servers = [];
+let selected_server = null;
 
 /**
  *
@@ -36,7 +40,7 @@ async function post(url, data=null, show_alert=true) {
 async function start_stop() {
     const name = SERVER_LIST.value;
     let action = "";
-    if (running_servers.includes(name)) {
+    if (is_server_running(name)) {
         action = "stop";
         set_status(`Stopping server ${name}`);
     } else {
@@ -45,7 +49,8 @@ async function start_stop() {
     }
     await post("/api/manage", {"name": name, "action": action});
     set_status(null);
-    fetch_servers();
+    await fetch_servers();
+    show_server_details(name);
 }
 
 function login() {
@@ -72,7 +77,7 @@ async function fetch_servers() {
             opt.text = server.name;
             opt.value = server.name;
             if (server.running) {
-                running_servers.push(server.name);
+                running_servers.push(server);
             }
             SERVER_LIST.add(opt);
             if (server.name === old_selected) {
@@ -89,7 +94,7 @@ async function fetch_servers() {
         } else {
             RUNNING_SERVERS_LIST.innerHTML = "";
             for (const server of running_servers) {
-                RUNNING_SERVERS_LIST.innerHTML += `<li>${server}</li>`;
+                RUNNING_SERVERS_LIST.innerHTML += `<li><a href="javascript:show_server_details('${server.name}')">${server.name}</a></li>`;
             }
             RUNNING_SERVERS_TITLE.style.display = "block";
             RUNNING_SERVERS_LIST.style.display = "block";
@@ -100,6 +105,7 @@ async function fetch_servers() {
         SERVER_LIST.add(opt);
     }
     set_status(null, true);
+    update_server_data();
 }
 
 function is_logged_in() {
@@ -108,7 +114,8 @@ function is_logged_in() {
 
 function on_server_select_change() {
     const name = SERVER_LIST.value;
-    if (running_servers.includes(name)) {
+    let server_running = is_server_running(name);
+    if (server_running) {
         START_STOP_BUTTON.innerText = "Stop Server";
     } else {
         START_STOP_BUTTON.innerText = "Start Server";
@@ -122,6 +129,35 @@ function set_status(msg, is_background=false) {
         msg = is_background ? "Performing no background tasks..." : "Waiting to do something...";
     }
     elem.innerText = start_text + msg;
+}
+
+function show_server_details(server_name) {
+    selected_server = server_name;
+    update_server_data();
+}
+
+function update_server_data() {
+    let server_data = get_running_server(selected_server);
+    if (server_data === null) {
+        SERVER_DATA.hidden = true;
+    } else {
+        SERVER_DATA_TITLE.innerText = `Information for ${selected_server}`;
+        SERVER_DATA_LOG.innerText = server_data.running_data.log;
+        SERVER_DATA.hidden = false;
+    }
+}
+
+function get_running_server(server_name) {
+    for (const server of running_servers) {
+        if (server.name === server_name) {
+            return server;
+        }
+    }
+    return null;
+}
+
+function is_server_running(server_name) {
+    return get_running_server(server_name) !== null;
 }
 
 function init() {
