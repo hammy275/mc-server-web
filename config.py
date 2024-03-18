@@ -4,7 +4,7 @@ import os
 import sys
 from threading import Lock
 import time
-from typing import List, Type, Union, Dict
+from typing import List, Type, Union
 
 from RunningServer import RunningServer
 
@@ -48,13 +48,13 @@ MAX_LOG_LINES = 10
 OAUTH_AUTH_URL = "https://discord.com/oauth2/authorize"
 OAUTH_TOKEN_URL = "https://discord.com/api/oauth2/token"
 API_ENDPOINT = "https://discord.com/api/v10"
-ALLOWED_USERS = {}
-ADMINS = {}
+ALLOWED_USERS: dict[str, str] = {}  # Key is Discord ID, value is friendly name
+ADMINS: dict[str, str] = {}  # Same format as ALLOWED_USERS
 WHITELIST_FILE_NAME = "mc_server_web.txt"
 
-session_to_discord_id = {}
+session_to_discord_id: dict[str, str] = {}  # Key is sessions sent to web clients, value is Discord IDs
 last_datastore_write: int = 0
-running_servers: Dict[str, RunningServer] = {}
+running_servers: dict[str, RunningServer] = {}
 last_server_poll: int = 0
 running_servers_lock = Lock()
 
@@ -106,6 +106,13 @@ def name_from_session_token(token: str) -> Union[str, None]:
         return None
     name = ALLOWED_USERS[discord_id]
     return name
+
+
+def is_admin(token: str) -> bool:
+    if token not in session_to_discord_id:
+        return False
+    discord_id = session_to_discord_id[token]
+    return discord_id in ADMINS
 
 
 def verify_and_load_config() -> str:

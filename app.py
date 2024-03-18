@@ -76,7 +76,8 @@ def index():
     name = config.name_from_session_token(token)
     return render_template("index.html",
                            logged_in="token" in session,
-                           name=name if name is not None else "")
+                           name=name if name is not None else "",
+                           admin=config.is_admin(token))
 
 
 @app.route("/index.js")
@@ -249,6 +250,23 @@ def manage_server():
             return make_message("Server stop command sent, but server didn't stop within 10 seconds! It's likely "
                                 "shutting down.", 200)
         return make_message("Server stopped!", 200)
+
+
+@app.route("/api/run_command", methods=["POST"])
+def run_command():
+    token: str = session["token"]
+    name: str = get_val_err("name")
+    command: str = get_val_err("command")
+    if not config.is_admin(token):
+        return make_message("Commands can only be run by admins!", 403)
+    config.running_servers_lock.acquire()
+    if name not in config.running_servers:
+        config.running_servers_lock.release()
+        return make_message("Server not found or not running!", 404)
+    server: RunningServer = config.running_servers[name]
+    send_command(server.process, command)
+    config.running_servers_lock.release()
+    return make_message("Ran command successfully!", 200)
 
 
 if __name__ == "__main__":

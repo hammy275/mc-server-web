@@ -20,6 +20,13 @@
                 <h3 id="server_data_title"></h3>
                 <h4>Log:</h4>
                 <p id="server_data_log"></p>
+                {% if admin %}
+                    <form id="command_form">
+                        <label for="command_input">Run Command:</label>
+                        <input type="text" id="command_input" name="command_input">
+                        <input type="submit" value="Run Command">
+                    </form>
+                {% endif %}
             </div>
             <br><br><br>
             <h3>Status Information:</h3>

@@ -8,6 +8,8 @@ const BACKGROUND_STATUS = document.getElementById("background_status");
 const SERVER_DATA = document.getElementById("server_data");
 const SERVER_DATA_TITLE = document.getElementById("server_data_title");
 const SERVER_DATA_LOG = document.getElementById("server_data_log");
+const COMMAND_INPUT = document.getElementById("command_input");
+const COMMAND_FORM = document.getElementById("command_form");
 
 const running_servers = [];
 let selected_server = null;
@@ -160,10 +162,20 @@ function is_server_running(server_name) {
     return get_running_server(server_name) !== null;
 }
 
+async function send_command(event) {
+    event.preventDefault();
+    set_status("Running command...");
+    const command = COMMAND_INPUT.value;
+    COMMAND_INPUT.value = "";
+    await post("/api/run_command", {"name": selected_server, "command": command}, false);
+    set_status(null);
+}
+
 function init() {
     if (is_logged_in()) {
         fetch_servers();
         setInterval(fetch_servers, 4000);
+        COMMAND_FORM.addEventListener("submit", send_command);
     }
 }
 
