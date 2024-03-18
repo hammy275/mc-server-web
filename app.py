@@ -3,7 +3,7 @@ from typing import Any, Union
 import os
 import requests
 import secrets
-from subprocess import DEVNULL, PIPE, Popen, CREATE_NO_WINDOW, TimeoutExpired
+from subprocess import DEVNULL, PIPE, Popen, CREATE_NO_WINDOW, TimeoutExpired, NORMAL_PRIORITY_CLASS
 import sys
 from urllib.parse import urlencode
 
@@ -228,7 +228,7 @@ def manage_server():
             if script_path.endswith(".ps1"):
                 args = ["powershell.exe", script_path]
             p = Popen(args, cwd=path, stdin=PIPE, stdout=DEVNULL, stderr=DEVNULL,
-                      creationflags=CREATE_NO_WINDOW, universal_newlines=True)
+                      creationflags=CREATE_NO_WINDOW | NORMAL_PRIORITY_CLASS, universal_newlines=True)
         except FileNotFoundError:
             return make_message(f"Failed to start server!", 500)
         if p.poll():
