@@ -96,7 +96,7 @@ async function fetch_servers() {
         } else {
             RUNNING_SERVERS_LIST.innerHTML = "";
             for (const server of running_servers) {
-                RUNNING_SERVERS_LIST.innerHTML += `<li><a href="javascript:show_server_details('${server.name}')">${server.name}</a></li>`;
+                RUNNING_SERVERS_LIST.innerHTML += `<li><a href="javascript:server_name_click('${server.name}')">${server.name}</a></li>`;
             }
             RUNNING_SERVERS_TITLE.style.display = "block";
             RUNNING_SERVERS_LIST.style.display = "block";
@@ -119,8 +119,10 @@ function on_server_select_change() {
     let server_running = is_server_running(name);
     if (server_running) {
         START_STOP_BUTTON.innerText = "Stop Server";
+        show_server_details(name);
     } else {
         START_STOP_BUTTON.innerText = "Start Server";
+        show_server_details(null);
     }
 }
 
@@ -169,6 +171,12 @@ async function send_command(event) {
     COMMAND_INPUT.value = "";
     await post("/api/run_command", {"name": selected_server, "command": command}, false);
     set_status(null);
+}
+
+function server_name_click(server_name) {
+    // Called by <a> elements added in fetch_servers()
+    SERVER_LIST.value = server_name;
+    on_server_select_change();
 }
 
 function init() {
