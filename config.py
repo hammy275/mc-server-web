@@ -56,37 +56,37 @@ session_to_discord_id: dict[str, str] = {}  # Key is sessions sent to web client
 last_datastore_write: int = 0
 running_servers: dict[str, RunningServer] = {}
 last_server_poll: int = 0
-running_servers_lock = Lock()
+running_servers_lock = Lock()  # Used so only one request can modify the running_servers dict.
+start_server_lock = Lock()  # Lock to prevent multiple threads from starting a server at close to the exact same time.
 
 # Expand vars for server folders
 for i in range(len(SERVER_FOLDERS)):
     SERVER_FOLDERS[i] = os.path.expanduser(os.path.expandvars(SERVER_FOLDERS[i]))
 
 
-def maybe_poll_running_servers():
+def maybe_poll_running_servers(force_poll=False):
     global last_server_poll
     current_time = time.time()
-    if current_time - last_server_poll > 3:
+    if current_time - last_server_poll > 3 or force_poll:
         last_server_poll = current_time
-        running_servers_lock.acquire()
-        to_remove = []
-        for name, running_server in running_servers.items():
-            process = running_server.process
-            if process.poll() is not None:
-                to_remove.append(name)
-        for name in to_remove:
-            del running_servers[name]
-        for name, running_server in running_servers.items():
-            logs_path = os.path.join(running_server.folder_path, "logs")
-            if os.path.isdir(logs_path):
-                log_path = os.path.join(logs_path, "latest.log")
-                if os.path.isfile(log_path):
-                    with open(log_path, "r") as f:
-                        lines = f.readlines()
-                        if len(lines) >= MAX_LOG_LINES:
-                            lines = lines[-MAX_LOG_LINES:]
-                        running_server.last_log_lines = "".join(lines)
-        running_servers_lock.release()
+        with running_servers_lock:
+            to_remove = []
+            for name, running_server in running_servers.items():
+                process = running_server.process
+                if process.poll() is not None:
+                    to_remove.append(name)
+            for name in to_remove:
+                del running_servers[name]
+            for name, running_server in running_servers.items():
+                logs_path = os.path.join(running_server.folder_path, "logs")
+                if os.path.isdir(logs_path):
+                    log_path = os.path.join(logs_path, "latest.log")
+                    if os.path.isfile(log_path):
+                        with open(log_path, "r") as f:
+                            lines = f.readlines()
+                            if len(lines) >= MAX_LOG_LINES:
+                                lines = lines[-MAX_LOG_LINES:]
+                            running_server.last_log_lines = "".join(lines)
 
 
 def maybe_write_datastore():

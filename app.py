@@ -210,35 +210,38 @@ def manage_server():
 
     # Ifs for which action we're performing
     if action == "start":
-        script_path: Union[str, None] = None
-        for script_name in config.STARTUP_SCRIPT_NAMES:
-            script_path = os.path.join(path, script_name)
-            if os.path.exists(script_path) and os.path.isfile(script_path):
-                break
-            else:
-                script_path = None
-        if script_path is None:
-            return make_message(f"Server does not contain a startup script.", 500)
-        try:
-            # stdout and stderr MUST be sent to DEVNULL. From testing:
-            # Vanilla 1.20.4 servers don't boot if stdout and stderr aren't sent somewhere
-            # Forge 1.20.1 servers don't boot if stdout or stderr are sent to PIPE
-            # Haven't checked whether "stdout and stderr" is an "or" instead.
-            args = [script_path]
-            if script_path.endswith(".ps1"):
-                args = ["powershell.exe", script_path]
-            p = Popen(args, cwd=path, stdin=PIPE, stdout=DEVNULL, stderr=DEVNULL,
-                      creationflags=CREATE_NO_WINDOW | NORMAL_PRIORITY_CLASS, universal_newlines=True)
-        except FileNotFoundError:
-            return make_message(f"Failed to start server!", 500)
-        if p.poll():
-            return make_message(f"Failed to start server!", 500)
-        config.running_servers_lock.acquire()
-        config.running_servers[name] = RunningServer(name=name, folder_path=os.path.dirname(script_path),
-                                                     process=p)
-        config.running_servers_lock.release()
-        app.logger.info(f"Started server {name}")
-        return make_message("Server started!", 200)
+        with config.start_server_lock:
+            config.maybe_poll_running_servers(force_poll=True)
+            if name in config.running_servers:
+                return make_message(f"Server {name} already running!", 400)
+            script_path: Union[str, None] = None
+            for script_name in config.STARTUP_SCRIPT_NAMES:
+                script_path = os.path.join(path, script_name)
+                if os.path.exists(script_path) and os.path.isfile(script_path):
+                    break
+                else:
+                    script_path = None
+            if script_path is None:
+                return make_message(f"Server does not contain a startup script.", 500)
+            try:
+                # stdout and stderr MUST be sent to DEVNULL. From testing:
+                # Vanilla 1.20.4 servers don't boot if stdout and stderr aren't sent somewhere
+                # Forge 1.20.1 servers don't boot if stdout or stderr are sent to PIPE
+                # Haven't checked whether "stdout and stderr" is an "or" instead.
+                args = [script_path]
+                if script_path.endswith(".ps1"):
+                    args = ["powershell.exe", script_path]
+                p = Popen(args, cwd=path, stdin=PIPE, stdout=DEVNULL, stderr=DEVNULL,
+                          creationflags=CREATE_NO_WINDOW | NORMAL_PRIORITY_CLASS, universal_newlines=True)
+            except FileNotFoundError:
+                return make_message(f"Failed to start server!", 500)
+            if p.poll():
+                return make_message(f"Failed to start server!", 500)
+            with config.running_servers_lock:
+                config.running_servers[name] = RunningServer(name=name, folder_path=os.path.dirname(script_path),
+                                                             process=p)
+            app.logger.info(f"Started server {name}")
+            return make_message("Server started!", 200)
     elif action == "stop":
         config.maybe_poll_running_servers()
         if name not in config.running_servers:
@@ -259,14 +262,12 @@ def run_command():
     command: str = get_val_err("command")
     if not config.is_admin(token):
         return make_message("Commands can only be run by admins!", 403)
-    config.running_servers_lock.acquire()
-    if name not in config.running_servers:
-        config.running_servers_lock.release()
-        return make_message("Server not found or not running!", 404)
-    server: RunningServer = config.running_servers[name]
-    send_command(server.process, command)
-    config.running_servers_lock.release()
-    return make_message("Ran command successfully!", 200)
+    with config.running_servers_lock:
+        if name not in config.running_servers:
+            return make_message("Server not found or not running!", 404)
+        server: RunningServer = config.running_servers[name]
+        send_command(server.process, command)
+        return make_message("Ran command successfully!", 200)
 
 
 if __name__ == "__main__":
