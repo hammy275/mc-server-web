@@ -12,6 +12,9 @@
             </select>
             <button id="start_stop_button" onclick="start_stop()" type="button">Start Server</button>
             <button onclick="logout()" type="button">Logout</button>
+            {% if admin %}
+                <button onclick="refresh_servers()">Refresh Available Servers</button>
+            {% endif %}
             <h3 style="display: none" id="running_servers_title">Running Servers:</h3>
             <ul style="display: none" id="running_servers_list">
             </ul>

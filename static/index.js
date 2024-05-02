@@ -146,7 +146,7 @@ function update_server_data() {
         SERVER_DATA.hidden = true;
     } else {
         SERVER_DATA_TITLE.innerText = `Information for ${selected_server}`;
-        SERVER_DATA_LOG.innerText = server_data.running_data.log;
+        SERVER_DATA_LOG.innerText = server_data.log;
         SERVER_DATA.hidden = false;
     }
 }
@@ -177,6 +177,12 @@ function server_name_click(server_name) {
     // Called by <a> elements added in fetch_servers()
     SERVER_LIST.value = server_name;
     on_server_select_change();
+}
+
+async function refresh_servers() {
+    set_status("Refreshing available server list...");
+    await post("/api/refresh_servers");
+    set_status(null);
 }
 
 function init() {

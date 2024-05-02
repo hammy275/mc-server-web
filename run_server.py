@@ -4,7 +4,7 @@ import config
 import sys
 
 if __name__ == "__main__":
-    config_err: str = config.verify_and_load_config()
+    config_err: str = config.startup()
     if config_err:
         app.app.logger.critical(config_err)
         sys.exit(1)

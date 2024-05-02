@@ -3,10 +3,11 @@ import logging
 import os
 import sys
 from threading import Lock
+from copy import deepcopy
 import time
 from typing import List, Type, Union
 
-from RunningServer import RunningServer
+from Server import Server
 
 
 def get_env(key: str, typ: Type) -> any:
@@ -54,14 +55,61 @@ WHITELIST_FILE_NAME = "mc_server_web.txt"
 
 session_to_discord_id: dict[str, str] = {}  # Key is sessions sent to web clients, value is Discord IDs
 last_datastore_write: int = 0
-running_servers: dict[str, RunningServer] = {}
-last_server_poll: int = 0
+servers: List[Server] = []
+servers_lock = Lock()
+running_servers: dict[str, Server] = {}
 running_servers_lock = Lock()  # Used so only one request can modify the running_servers dict.
+last_server_poll: int = 0
 start_server_lock = Lock()  # Lock to prevent multiple threads from starting a server at close to the exact same time.
 
 # Expand vars for server folders
 for i in range(len(SERVER_FOLDERS)):
     SERVER_FOLDERS[i] = os.path.expanduser(os.path.expandvars(SERVER_FOLDERS[i]))
+
+
+def get_server_by_name(name: str) -> Union[Server, None]:
+    with servers_lock:
+        return get_server_by_name_no_lock(name)
+
+
+def get_server_by_name_no_lock(name: str) -> Union[Server, None]:
+    for server in servers:
+        if server.name == name:
+            return server
+    return None
+
+
+def get_whitelisted_users(path: str) -> list[str]:
+    """Get all whitelisted users in the file.
+
+    Args:
+        path: File path to whitelist file. It's okay if the file does not exist.
+
+    Returns:
+        A list of whitelisted users, or an empty list if the file wasn't found.
+    """
+    if not os.path.exists(path) or not os.path.isfile(path):
+        return []
+    with open(path, "r") as f:
+        return f.read().split(",")
+
+
+def load_servers():
+    with servers_lock:
+        with running_servers_lock:
+            servers.clear()
+            currently_running = list(running_servers.values())
+            for cr in currently_running:
+                servers.append(cr)
+            for folder in SERVER_FOLDERS:
+                folder_whitelisted_users = get_whitelisted_users(os.path.join(folder, WHITELIST_FILE_NAME))
+                for f in os.listdir(folder):
+                    server_folder = os.path.join(folder, f)
+                    if os.path.isdir(server_folder):
+                        users = deepcopy(folder_whitelisted_users) + get_whitelisted_users(os.path.join(folder, f, WHITELIST_FILE_NAME))
+                        new_server = Server(id_in=f, folder_path=server_folder, users=users)
+                        if get_server_by_name_no_lock(new_server.name) is None:
+                            servers.append(new_server)
 
 
 def maybe_poll_running_servers(force_poll=False):
@@ -73,9 +121,10 @@ def maybe_poll_running_servers(force_poll=False):
             to_remove = []
             for name, running_server in running_servers.items():
                 process = running_server.process
-                if process.poll() is not None:
+                if process is None or process.poll() is not None:
                     to_remove.append(name)
             for name in to_remove:
+                running_servers[name].on_stop()
                 del running_servers[name]
             for name, running_server in running_servers.items():
                 logs_path = os.path.join(running_server.folder_path, "logs")
@@ -86,7 +135,7 @@ def maybe_poll_running_servers(force_poll=False):
                             lines = f.readlines()
                             if len(lines) >= MAX_LOG_LINES:
                                 lines = lines[-MAX_LOG_LINES:]
-                            running_server.last_log_lines = "".join(lines)
+                            running_server.set_log("".join(lines))
 
 
 def maybe_write_datastore():
@@ -115,8 +164,11 @@ def is_admin(token: str) -> bool:
     return discord_id in ADMINS
 
 
-def verify_and_load_config() -> str:
-    """Verify that this config file is correct, or at least correct enough, then load config files.
+def startup() -> str:
+    """Perform startup.
+
+    Verify that this config file is correct, or at least correct enough, then load config files.
+    Also loads all the servers into the internal list of servers.
 
     Returns:
         An empty string if the config file is OK or an error message if it isn't.
@@ -154,5 +206,7 @@ def verify_and_load_config() -> str:
     if os.path.isfile(DATASTORE_NAME):
         with open(DATASTORE_NAME, "r") as f:
             session_to_discord_id.update(json.load(f))
+
+    load_servers()
 
     return ""

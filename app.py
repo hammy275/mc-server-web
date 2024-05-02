@@ -8,7 +8,7 @@ import sys
 from urllib.parse import urlencode
 
 import config
-from RunningServer import RunningServer
+from Server import Server
 
 app = Flask(__name__)
 
@@ -28,22 +28,18 @@ def get_val_err(key: str) -> Any:
     return val
 
 
-def is_user_whitelisted(path: str) -> bool:
-    """Whether the current request's user is whitelisted based on the supplied file path.
+def is_user_whitelisted(server: Server) -> bool:
+    """Whether the current request's user is whitelist for this server.
 
     Args:
-        path: File path to whitelist file. It's okay if the file does not exist.
+        server: Server to check for whitelist.
 
     Returns:
-        Whether the current user is whitelisted in the whitelist, or True if the whitelist isn't found.
+        Whether the current user is whitelisted in the whitelist.
     """
-    if not os.path.exists(path) or not os.path.isfile(path):
-        return True
-    with open(path, "r") as f:
-        allowed_users = f.read().split(",")
-        this_user = config.name_from_session_token(session["token"])
-        discord_token = config.session_to_discord_id[session["token"]]
-        return this_user in allowed_users or discord_token in config.ADMINS
+    this_user = config.name_from_session_token(session["token"])
+    discord_token = config.session_to_discord_id[session["token"]]
+    return this_user in server.users or discord_token in config.ADMINS
 
 
 def send_command(process: Popen, command: str):
@@ -162,22 +158,24 @@ def logout():
     return make_message("Logged out!", 200)
 
 
+@app.route("/api/refresh_servers", methods=["POST"])
+def refresh_servers():
+    if not config.is_admin(session["token"]):
+        return make_message("Only admins can refresh the list of available servers!", 403)
+    else:
+        config.load_servers()
+        config.maybe_poll_running_servers(True)
+        return make_message("Servers refreshed!", 200)
+
+
 @app.route("/api/list", methods=["POST"])
 def list_servers():
     config.maybe_poll_running_servers()
     servers = []
-    for folder in config.SERVER_FOLDERS:
-        if not is_user_whitelisted(os.path.join(folder, config.WHITELIST_FILE_NAME)):
-            continue
-        for f in os.listdir(folder):
-            if not is_user_whitelisted(os.path.join(folder, f, config.WHITELIST_FILE_NAME)):
-                continue
-            if os.path.isdir(os.path.join(folder, f)):
-                running: bool = f in config.running_servers
-                server_data = {"name": f, "running": running}
-                if running:
-                    server_data["running_data"] = config.running_servers[f].get_running_data()
-                servers.append(server_data)
+    with config.servers_lock:
+        for server in config.servers:
+            if is_user_whitelisted(server):
+                servers.append(server.get_data())
     return jsonify({"message": "Got servers!", "data": sorted(servers, key=lambda s: s["name"])}), 200
 
 
@@ -187,26 +185,10 @@ def manage_server():
     action: str = get_val_err("action")
     if action not in ["start", "stop"]:
         return make_message(f"Invalid server action!", 400)
-    path: Union[str, None] = None
-    for folder in config.SERVER_FOLDERS:
-        path = os.path.join(folder, name)
-        if os.path.exists(path) and os.path.isdir(path):
-            break
-        else:
-            path = None
-    possible_path_traversal: bool = True
-    for folder in config.SERVER_FOLDERS:
-        try:
-            common_path = os.path.commonpath([path, folder])
-        except ValueError:
-            break
-        if common_path.startswith(folder):
-            possible_path_traversal = False
-            break
-    if possible_path_traversal:
-        return make_message(f"Path {path} invalid!", 400)
-    if path is None:
-        return make_message(f"Path {path} not found! This isn't a server that can be launched.", 404)
+
+    server = config.get_server_by_name(name)
+    if server is None or not is_user_whitelisted(server):
+        return make_message(f"Server {name} not found!", 404)
 
     # Ifs for which action we're performing
     if action == "start":
@@ -216,7 +198,7 @@ def manage_server():
                 return make_message(f"Server {name} already running!", 400)
             script_path: Union[str, None] = None
             for script_name in config.STARTUP_SCRIPT_NAMES:
-                script_path = os.path.join(path, script_name)
+                script_path = os.path.join(server.folder_path, script_name)
                 if os.path.exists(script_path) and os.path.isfile(script_path):
                     break
                 else:
@@ -231,15 +213,15 @@ def manage_server():
                 args = [script_path]
                 if script_path.endswith(".ps1"):
                     args = ["powershell.exe", script_path]
-                p = Popen(args, cwd=path, stdin=PIPE, stdout=DEVNULL, stderr=DEVNULL,
+                p = Popen(args, cwd=server.folder_path, stdin=PIPE, stdout=DEVNULL, stderr=DEVNULL,
                           creationflags=CREATE_NO_WINDOW | NORMAL_PRIORITY_CLASS, universal_newlines=True)
+                server.process = p
             except FileNotFoundError:
                 return make_message(f"Failed to start server!", 500)
             if p.poll():
                 return make_message(f"Failed to start server!", 500)
             with config.running_servers_lock:
-                config.running_servers[name] = RunningServer(name=name, folder_path=os.path.dirname(script_path),
-                                                             process=p)
+                config.running_servers[name] = server
             app.logger.info(f"Started server {name}")
             return make_message("Server started!", 200)
     elif action == "stop":
@@ -265,13 +247,13 @@ def run_command():
     with config.running_servers_lock:
         if name not in config.running_servers:
             return make_message("Server not found or not running!", 404)
-        server: RunningServer = config.running_servers[name]
+        server: Server = config.running_servers[name]
         send_command(server.process, command)
         return make_message("Ran command successfully!", 200)
 
 
 if __name__ == "__main__":
-    config_err: str = config.verify_and_load_config()
+    config_err: str = config.startup()
     if config_err:
         app.logger.critical(config_err)
         sys.exit(1)
