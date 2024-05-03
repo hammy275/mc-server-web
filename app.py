@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, redirect, render_template, request, send_from_directory, session, url_for
+from flask import Flask, jsonify, redirect, render_template, request, send_from_directory, session, url_for, make_response
 from typing import Any, Union
 import os
 import requests
@@ -37,8 +37,9 @@ def is_user_whitelisted(server: Server) -> bool:
     Returns:
         Whether the current user is whitelisted in the whitelist.
     """
-    this_user = config.name_from_session_token(session["token"])
-    discord_token = config.session_to_discord_id[session["token"]]
+    token = get_cookie("token")
+    this_user = config.name_from_token(token)
+    discord_token = config.token_to_discord_id[token]
     return this_user in server.users or discord_token in config.ADMINS
 
 
@@ -54,24 +55,48 @@ def send_command(process: Popen, command: str):
     process.stdin.flush()
 
 
+def get_cookie(name: str, default: Any = None):
+    """Get a cookie from the current request, or return default if the cookie isn't found.
+
+    Args:
+        name: Cookie to get
+        default: Value to return if cookie isn't found. Defaults to None.
+
+    Returns:
+        The cookie value for the given name, or the value supplied to default if not found.
+    """
+    if name in request.cookies:
+        return request.cookies.get(name)
+    else:
+        return default
+
+
 @app.before_request
 def before_request():
-    # If GET, handle session (clear token if server restarted, etc.)
+    # If GET, handle the token (clear token if server restarted, etc.)
+    token = get_cookie("token")
     if request.method == "GET":
-        if "token" in session and session["token"] not in config.session_to_discord_id:
-            session.pop("token")
+        if token is not None and token not in config.token_to_discord_id:
+            resp = redirect(url_for("index"))
+            resp.delete_cookie("token")
+            return resp
     elif request.method == "POST":
-        if "token" not in session or session["token"] not in config.session_to_discord_id:
-            return make_message("Not authenticated!", 403)
+        if token is None or token not in config.token_to_discord_id:
+            resp = make_message("Not authenticated!", 403)
+            if token is not None:
+                resp[0].delete_cookie("token")
+            return resp
+    else:
+        return make_message("Method not supported!", 405)
 
 
 @app.route("/")
 @app.route("/index.html")
 def index():
-    token = session["token"] if "token" in session else None
-    name = config.name_from_session_token(token)
+    token = get_cookie("token")
+    name = config.name_from_token(token)
     return render_template("index.html",
-                           logged_in="token" in session,
+                           logged_in=token is not None,
                            name=name if name is not None else "",
                            admin=config.is_admin(token))
 
@@ -135,32 +160,34 @@ def oauth2_redirect():
     if discord_user_id not in config.ALLOWED_USERS:
         return "You are not authorized to use MC Server Web!", 403
 
-    session_token = secrets.token_urlsafe(128)
+    token = secrets.token_urlsafe(128)
 
-    session["token"] = session_token
     session.pop("state")
     to_del = []
-    for key in config.session_to_discord_id:
-        val = config.session_to_discord_id[key]
+    for key in config.token_to_discord_id:
+        val = config.token_to_discord_id[key]
         if val == discord_user_id:
             to_del.append(key)
     for key in to_del:
-        del config.session_to_discord_id[key]
-    config.session_to_discord_id[session_token] = discord_user_id
+        del config.token_to_discord_id[key]
+    config.token_to_discord_id[token] = discord_user_id
     config.maybe_write_datastore()
 
-    return redirect(url_for("index"))
+    resp = redirect(url_for("index"))
+    resp.set_cookie("token", token, max_age=60*60*24*30)
+    return resp
 
 
 @app.route("/auth/logout", methods=["POST"])
 def logout():
-    session.pop("token")
-    return make_message("Logged out!", 200)
+    resp = make_message("Logged out!", 200)
+    resp[0].delete_cookie("token")
+    return resp
 
 
 @app.route("/api/refresh_servers", methods=["POST"])
 def refresh_servers():
-    if not config.is_admin(session["token"]):
+    if not config.is_admin(get_cookie("token")):
         return make_message("Only admins can refresh the list of available servers!", 403)
     else:
         config.load_servers()
@@ -239,7 +266,7 @@ def manage_server():
 
 @app.route("/api/run_command", methods=["POST"])
 def run_command():
-    token: str = session["token"]
+    token: str = get_cookie("token")
     name: str = get_val_err("name")
     command: str = get_val_err("command")
     if not config.is_admin(token):

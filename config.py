@@ -39,7 +39,7 @@ OAUTH_CLIENT_SECRET = get_env("MC_SERVER_WEB_OAUTH_CLIENT_SECRET", str)
 OAUTH_REDIRECT_URI = get_env("MC_SERVER_WEB_OAUTH_REDIRECT_URI", str)
 # Flask secret key. Can be anything. Example: The output of secrets.token_urlsafe(32)
 FLASK_SECRET_KEY = get_env("MC_SERVER_WEB_FLASK_SECRET_KEY", str)
-# Datastore file name. Used to store the session_to_discord_id map to persist between server restarts.
+# Datastore file name. Used to store the token_to_discord_id map to persist between server restarts.
 DATASTORE_NAME = "datastore.json"
 # Maximum number of lines to send from the log to clients
 MAX_LOG_LINES = 10
@@ -53,7 +53,7 @@ ALLOWED_USERS: dict[str, str] = {}  # Key is Discord ID, value is friendly name
 ADMINS: dict[str, str] = {}  # Same format as ALLOWED_USERS
 WHITELIST_FILE_NAME = "mc_server_web.txt"
 
-session_to_discord_id: dict[str, str] = {}  # Key is sessions sent to web clients, value is Discord IDs
+token_to_discord_id: dict[str, str] = {}  # Key is tokens sent to web clients, value is Discord IDs
 last_datastore_write: int = 0
 servers: List[Server] = []
 servers_lock = Lock()
@@ -144,13 +144,13 @@ def maybe_write_datastore():
     if current_time - last_datastore_write > 10:
         last_datastore_write = current_time
         with open(DATASTORE_NAME, "w") as f:
-            f.write(json.dumps(session_to_discord_id))
+            f.write(json.dumps(token_to_discord_id))
 
 
-def name_from_session_token(token: str) -> Union[str, None]:
-    if token not in session_to_discord_id:
+def name_from_token(token: str) -> Union[str, None]:
+    if token not in token_to_discord_id:
         return None
-    discord_id = session_to_discord_id[token]
+    discord_id = token_to_discord_id[token]
     if discord_id not in ALLOWED_USERS:
         return None
     name = ALLOWED_USERS[discord_id]
@@ -158,9 +158,9 @@ def name_from_session_token(token: str) -> Union[str, None]:
 
 
 def is_admin(token: str) -> bool:
-    if token not in session_to_discord_id:
+    if token not in token_to_discord_id:
         return False
-    discord_id = session_to_discord_id[token]
+    discord_id = token_to_discord_id[token]
     return discord_id in ADMINS
 
 
@@ -205,7 +205,7 @@ def startup() -> str:
 
     if os.path.isfile(DATASTORE_NAME):
         with open(DATASTORE_NAME, "r") as f:
-            session_to_discord_id.update(json.load(f))
+            token_to_discord_id.update(json.load(f))
 
     load_servers()
 
