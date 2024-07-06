@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, redirect, render_template, request, send_from_directory, session, url_for, make_response
 from typing import Any, Union
 import os
+import psutil
 import requests
 import secrets
 from subprocess import DEVNULL, PIPE, Popen, CREATE_NO_WINDOW, TimeoutExpired, NORMAL_PRIORITY_CLASS
@@ -259,8 +260,21 @@ def manage_server():
         try:
             proc.communicate(input="stop\n", timeout=10)
         except TimeoutExpired:
-            return make_message("Server stop command sent, but server didn't stop within 10 seconds! It's likely "
-                                "shutting down.", 200)
+            has_java = False
+            try:
+                shell_process = psutil.Process(proc.pid)
+                shell_children = shell_process.children(recursive=True)
+                for child in shell_children:
+                    if "java" in os.path.basename(child.exe()):
+                        has_java = True
+                        break
+            except psutil.NoSuchProcess:
+                pass
+            if has_java:
+                return make_message("Server stop command sent, but server didn't stop within 10 seconds! It's likely "
+                                    "shutting down.", 200)
+            else:
+                proc.kill()
         return make_message("Server stopped!", 200)
 
 
