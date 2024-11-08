@@ -7,6 +7,7 @@ import secrets
 from subprocess import DEVNULL, PIPE, Popen, CREATE_NO_WINDOW, TimeoutExpired, NORMAL_PRIORITY_CLASS
 import sys
 from urllib.parse import urlencode
+from time import sleep
 
 import config
 from Server import Server
@@ -271,10 +272,10 @@ def manage_server():
             except psutil.NoSuchProcess:
                 pass
             if has_java:
-                return make_message("Server stop command sent, but server didn't stop within 10 seconds! It's likely "
-                                    "shutting down.", 200)
-            else:
+                sleep(10)  # Give the server an extra 10 seconds in case it's still saving (unlikely)
                 proc.kill()
+            else:
+                proc.kill()  # No Java found, so the server is definitely gone. Kill it ASAP.
         return make_message("Server stopped!", 200)
 
 
