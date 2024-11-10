@@ -265,14 +265,18 @@ def manage_server():
             try:
                 shell_process = psutil.Process(proc.pid)
                 shell_children = shell_process.children(recursive=True)
+                java_child = None
                 for child in shell_children:
                     if "java" in os.path.basename(child.exe()):
                         has_java = True
+                        java_child = child
                         break
             except psutil.NoSuchProcess:
                 pass
             if has_java:
                 sleep(10)  # Give the server an extra 10 seconds in case it's still saving (unlikely)
+                if java_child is not None:
+                    java_child.kill()
                 proc.kill()
             else:
                 proc.kill()  # No Java found, so the server is definitely gone. Kill it ASAP.
