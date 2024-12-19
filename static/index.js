@@ -185,7 +185,15 @@ async function refresh_servers() {
     set_status(null);
 }
 
+function use_new_site() {
+    localStorage.setItem("useNewSite", "true");
+    window.location.href = "/v2";
+}
+
 function init() {
+    if (localStorage.getItem("useNewSite")) {
+        window.location.href = "/v2";
+    }
     if (is_logged_in()) {
         fetch_servers();
         setInterval(fetch_servers, 4000);

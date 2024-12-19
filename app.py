@@ -92,6 +92,14 @@ def before_request():
         return make_message("Method not supported!", 405)
 
 
+@app.route("/v2")
+def index_v2():
+    return send_from_directory("react-frontend/dist", "index.html")
+
+@app.route("/assets/<path:path>")
+def bundle_v2(path):
+    return send_from_directory("react-frontend/dist/assets", path)
+
 @app.route("/")
 @app.route("/index.html")
 def index():
@@ -107,6 +115,15 @@ def index():
 def index_js():
     return send_from_directory("static", "index.js")
 
+@app.route("/auth/info", methods=["GET"])
+def get_auth_data():
+    token = get_cookie("token")
+    name = config.name_from_token(token)
+    return jsonify({
+        "logged_in": token is not None,
+        "name": name,
+        "admin": config.is_admin(token)
+    }), 200
 
 @app.route("/auth/authorize")
 def oauth2_authorize():
