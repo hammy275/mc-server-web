@@ -10,7 +10,7 @@ function App() {
     const [isAdmin, setIsAdmin] = useState(false);
     const [server, setServer] = useState<string>("");
     const [servers, setServers] = useState<Array<any>>([]);
-    const [log, setLog] = useState<string>("");
+    const [log, setLog] = useState<string | null>(null);
     const [didInit, setDidInit] = useState(false);
     const [alert, setAlert] = useState("");
     if (!localStorage.getItem("useNewSite")) {
@@ -50,19 +50,20 @@ function App() {
         if (!didInit) {
             init();
         }
-        let newLog = "";
-            for (const s of servers) {
-                if (s.name === server) {
-                    if (s.running) {
-                        newLog = s.log === null ? "" : s.log;
-                        break;
-                    }
+        let newLog = null;
+        for (const s of servers) {
+            if (s.name === server) {
+                if (s.running) {
+                    newLog = s.log;
+                    break;
                 }
             }
-            setLog(newLog);
+        }
+        setLog(newLog);
         const interval = setInterval(updateServersAndLog, 3000);
         return () => clearInterval(interval);
     });
+    const console = log !== null ? <Console server={server} admin={isAdmin} log={log}/> : <></>;
     const loggedInPage = name !== null ? (
         <Container fluid>
             <br/>
@@ -72,7 +73,7 @@ function App() {
                     <ServerSelection onServerStartStop={updateServersAndLog} servers={servers} setServer={onSetServer} server={server}/>
                 </Col>
                 <Col>
-                    <Console log={log}/>
+                    {console}
                 </Col>
                 <Col xs={1}></Col>
             </Row>
