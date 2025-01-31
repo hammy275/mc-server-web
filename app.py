@@ -275,8 +275,16 @@ def manage_server():
         if name not in config.running_servers:
             return make_message(f"Server {name} not running!", 400)
         proc = config.running_servers[name].process
+        custom_stop_command_file = os.path.join(server.folder_path, "stop_command.txt")
+        stop_command = "stop"
+        if os.path.isfile(custom_stop_command_file):
+            try:
+                with open(custom_stop_command_file, "r") as f:
+                    stop_command = f.readline().strip()
+            except OSError:
+                pass
         try:
-            proc.communicate(input="stop\n", timeout=10)
+            proc.communicate(input=f"{stop_command}\n", timeout=10)
         except TimeoutExpired:
             has_java = False
             try:
