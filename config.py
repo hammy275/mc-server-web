@@ -128,14 +128,23 @@ def maybe_poll_running_servers(force_poll=False):
                 del running_servers[name]
             for name, running_server in running_servers.items():
                 logs_path = os.path.join(running_server.folder_path, "logs")
-                if os.path.isdir(logs_path):
-                    log_path = os.path.join(logs_path, "latest.log")
-                    if os.path.isfile(log_path):
-                        with open(log_path, "r") as f:
-                            lines = f.readlines()
-                            if len(lines) >= MAX_LOG_LINES:
-                                lines = lines[-MAX_LOG_LINES:]
-                            running_server.set_log("".join(lines))
+                custom_logs_file = os.path.join(running_server.folder_path, "log_location.txt")
+                if os.path.isfile(custom_logs_file):
+                    try:
+                        with open(custom_logs_file, "r") as f:
+                            extra_path = f.readline().strip().split("/")
+                            log_path = os.path.join(running_server.folder_path, *extra_path)
+                    except OSError:
+                        pass
+                else:
+                    if os.path.isdir(logs_path):
+                        log_path = os.path.join(logs_path, "latest.log")
+                if os.path.isfile(log_path):
+                    with open(log_path, "r") as f:
+                        lines = f.readlines()
+                        if len(lines) >= MAX_LOG_LINES:
+                            lines = lines[-MAX_LOG_LINES:]
+                        running_server.set_log("".join(lines))
 
 
 def maybe_write_datastore():
