@@ -13,9 +13,6 @@ function App() {
     const [log, setLog] = useState<string | null>(null);
     const [didInit, setDidInit] = useState(false);
     const [alert, setAlert] = useState("");
-    if (!localStorage.getItem("useNewSite")) {
-        window.location.href = "/index.html";
-    }
     async function init() {
         const html = document.getElementById("html");
         const darkFromStorage = localStorage.getItem("dark");

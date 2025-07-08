@@ -93,23 +93,14 @@ def before_request():
 
 
 @app.route("/v2")
+@app.route("/")
+@app.route("/index.html")
 def index_v2():
     return send_from_directory("react-frontend/dist", "index.html")
 
 @app.route("/assets/<path:path>")
 def bundle_v2(path):
     return send_from_directory("react-frontend/dist/assets", path)
-
-@app.route("/")
-@app.route("/index.html")
-def index():
-    token = get_cookie("token")
-    name = config.name_from_token(token)
-    return render_template("index.html",
-                           logged_in=token is not None,
-                           name=name if name is not None else "",
-                           admin=config.is_admin(token))
-
 
 @app.route("/index.js")
 def index_js():

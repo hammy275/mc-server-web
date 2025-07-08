@@ -48,12 +48,6 @@ const Header = (props : HeaderProps)=> {
                         </Col>
                         {refreshServers}
                         <Col xs="auto">
-                            <Button variant="secondary" onClick={() => {
-                                localStorage.removeItem("useNewSite");
-                                window.location.href = "/index.html";
-                            }}>Use Old Site</Button>
-                        </Col>
-                        <Col xs="auto">
                             <Button onClick={() => signInOutClick(props.name !== null)} type="submit">{sign_text}</Button>
                         </Col>
                     </Row>
