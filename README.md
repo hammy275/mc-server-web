@@ -24,11 +24,12 @@ Thanks to <https://blog.miguelgrinberg.com/post/oauth-authentication-with-flask-
 2. Add the environment variables as mentioned in `config.py`.
 3. `python app.py` to generate `user_ids.txt`
 4. Fill in `user_ids.txt`, with user IDs from Discord and friendly names that you'll use in other places. Any user not here will NOT be able to use MC Server Web. Note that by using a ~ instead of = as a separator, that user is an admin (see below).
-5. Optional: For each server, add a `mc_server_web.txt` file, filled with comma-separated friendly names. For example: `Me,MyFriend`. Any users not in this list will not be able to start this server, or even see it in the list view!
-6. Optional: For each server folder (the folders configured in `config.py`'s `SERVER_FOLDERS`), add a `mc_server_web.txt` file, filled with comma-separted friendly names, as in step 5. Any users not in this list will not be able to start any server in this folder, even if they are present in an individual server's whitelist in step 5.
-7. Optional: For working with server types other than Minecraft, one can add a custom `stop_command.txt` file to a server folder. This file should contain one line, the command to send to stop a server.
-8. Optional: Similarly to the step above, one can specify `log_location.txt` to specify the log location to pull from for sending log output to the frontend. This file should contain one line, and should use `/` as the separator, even on Windows systems.
-9. `python run_server.py` to run MC Server Web.
+5. In the `react-frontend` folder, run `npm install` followed by `npm run build`.
+6. Optional: For each server, add a `mc_server_web.txt` file, filled with comma-separated friendly names. For example: `Me,MyFriend`. Any users not in this list will not be able to start this server, or even see it in the list view!
+7. Optional: For each server folder (the folders configured in `config.py`'s `SERVER_FOLDERS`), add a `mc_server_web.txt` file, filled with comma-separted friendly names, as in step 5. Any users not in this list will not be able to start any server in this folder, even if they are present in an individual server's whitelist in step 5.
+8. Optional: For working with server types other than Minecraft, one can add a custom `stop_command.txt` file to a server folder. This file should contain one line, the command to send to stop a server.
+9. Optional: Similarly to the step above, one can specify `log_location.txt` to specify the log location to pull from for sending log output to the frontend. This file should contain one line, and should use `/` as the separator, even on Windows systems.
+10. `python run_server.py` to run MC Server Web.
 
 ### Admins
 
