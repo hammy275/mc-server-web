@@ -10,6 +10,7 @@ type ConsoleProps = {
 
 const Console = (props : ConsoleProps) => {
     const [command, setCommand] = useState("");
+
     async function onKeyDown(event: any) {
         if (event.key === "Enter") {
             if (command !== "") {
@@ -18,6 +19,7 @@ const Console = (props : ConsoleProps) => {
             }
         }
     }
+
     const input = props.admin ?
         <Form.Control placeholder="Enter Command..." value={command} onChange={(event) => setCommand(event.target.value)} onKeyDown={onKeyDown} id="commandInput"></Form.Control>
         : <></>;

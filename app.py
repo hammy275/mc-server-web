@@ -46,6 +46,20 @@ def is_user_whitelisted(server: Server) -> bool:
     return this_user in server.users or discord_token in config.ADMINS
 
 
+def is_user_server_admin(server: Server) -> bool:
+    """Whether the current request's user is an admin for this server.
+
+    Args:
+        server: Server to check for admin.
+
+    Returns:
+        Whether the current user is admin for this server. Does not account for global admins.
+    """
+    token = get_cookie("token")
+    this_user = config.name_from_token(token)
+    return this_user in server.admins
+
+
 def send_command(process: Popen, command: str):
     """Run a command on a given process representing a Minecraft server.
 
@@ -99,16 +113,13 @@ def before_request():
 @app.route("/v2")
 @app.route("/")
 @app.route("/index.html")
-def index_v2():
+@app.route("/index")
+def index():
     return send_from_directory("react-frontend/dist", "index.html")
 
 @app.route("/assets/<path:path>")
-def bundle_v2(path):
+def bundle(path):
     return send_from_directory("react-frontend/dist/assets", path)
-
-@app.route("/index.js")
-def index_js():
-    return send_from_directory("static", "index.js")
 
 @app.route("/auth/info", methods=["GET"])
 def get_auth_data():
@@ -216,7 +227,7 @@ def list_servers():
     with config.servers_lock:
         for server in config.servers:
             if is_user_whitelisted(server):
-                servers.append(server.get_data())
+                servers.append(server.get_data(is_user_server_admin(server)))
     return jsonify({"message": "Got servers!", "data": sorted(servers, key=lambda s: s["name"])}), 200
 
 
@@ -308,11 +319,11 @@ def run_command():
     token: str = get_cookie("token")
     name: str = get_val_err("name")
     command: str = get_val_err("command")
-    if not config.is_admin(token):
+    if name not in config.running_servers:
+        return make_message("Server not found or not running!", 404)
+    if not config.is_admin(token) and not is_user_server_admin(config.running_servers[name]):
         return make_message("Commands can only be run by admins!", 403)
     with config.running_servers_lock:
-        if name not in config.running_servers:
-            return make_message("Server not found or not running!", 404)
         server: Server = config.running_servers[name]
         send_command(server.process, command)
         return make_message("Ran command successfully!", 200)

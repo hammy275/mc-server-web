@@ -4,11 +4,12 @@ from threading import Lock
 from typing import Union
 
 class Server:
-    def __init__(self, id_in: str, folder_path: str, users: list[str]):
+    def __init__(self, id_in: str, folder_path: str, users: list[str], admins: list[str]):
         # Provided by constructor
         self.id: str = id_in
         self.folder_path: str = folder_path
         self.users: list[str] = users
+        self.admins: list[str] = admins
         self.log = ""
 
         # Other initial fields.
@@ -32,8 +33,8 @@ class Server:
             self.log = None
             self.process = None
 
-    def get_data(self) -> dict:
-        data = {"id": self.id, "name": self.name, "running": self.is_running()}
+    def get_data(self, is_admin: bool) -> dict:
+        data = {"id": self.id, "name": self.name, "running": self.is_running(), "is_admin": is_admin}
         if self.is_running():
             data["log"] = self.log
         return data

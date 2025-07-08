@@ -5,7 +5,7 @@ import sys
 from threading import Lock
 from copy import deepcopy
 import time
-from typing import List, Type, Union
+from typing import List, Type, Union, Tuple
 
 from Server import Server
 
@@ -79,19 +79,25 @@ def get_server_by_name_no_lock(name: str) -> Union[Server, None]:
     return None
 
 
-def get_whitelisted_users(path: str) -> list[str]:
-    """Get all whitelisted users in the file.
+def get_whitelisted_and_admin_users(path: str) -> Tuple[list[str], list[str]]:
+    """Get all whitelisted and admin users in the file.
 
     Args:
         path: File path to whitelist file. It's okay if the file does not exist.
 
     Returns:
-        A list of whitelisted users, or an empty list if the file wasn't found.
+        A list of whitelisted users and admin users in that order, or an empty list if the file wasn't found.
     """
     if not os.path.exists(path) or not os.path.isfile(path):
-        return []
+        return [], []
     with open(path, "r") as f:
-        return f.read().split(",")
+        lines = f.readlines()
+        if len(lines) == 0:
+            return [], []
+        elif len(lines) == 1:
+            return lines[0].strip().split(","), []
+        else:
+            return lines[0].strip().split(","), lines[1].split(",")
 
 
 def load_servers():
@@ -102,12 +108,14 @@ def load_servers():
             for cr in currently_running:
                 servers.append(cr)
             for folder in SERVER_FOLDERS:
-                folder_whitelisted_users = get_whitelisted_users(os.path.join(folder, WHITELIST_FILE_NAME))
+                folder_whitelisted_users, folder_admin_users = get_whitelisted_and_admin_users(os.path.join(folder, WHITELIST_FILE_NAME))
                 for f in os.listdir(folder):
                     server_folder = os.path.join(folder, f)
                     if os.path.isdir(server_folder):
-                        users = deepcopy(folder_whitelisted_users) + get_whitelisted_users(os.path.join(folder, f, WHITELIST_FILE_NAME))
-                        new_server = Server(id_in=f, folder_path=server_folder, users=users)
+                        file_whitelisted_users, file_admin_users = get_whitelisted_and_admin_users(os.path.join(folder, f, WHITELIST_FILE_NAME))
+                        admins = list(set(deepcopy(folder_admin_users + file_admin_users)))
+                        users = list(set(deepcopy(folder_whitelisted_users + file_whitelisted_users + admins)))
+                        new_server = Server(id_in=f, folder_path=server_folder, users=users, admins=admins)
                         if get_server_by_name_no_lock(new_server.name) is None:
                             servers.append(new_server)
 
