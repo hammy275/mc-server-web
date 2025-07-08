@@ -6,6 +6,7 @@ import requests
 import secrets
 from subprocess import DEVNULL, PIPE, Popen, CREATE_NO_WINDOW, TimeoutExpired, NORMAL_PRIORITY_CLASS
 import sys
+import unicodedata
 from urllib.parse import urlencode
 from time import sleep
 
@@ -48,11 +49,14 @@ def is_user_whitelisted(server: Server) -> bool:
 def send_command(process: Popen, command: str):
     """Run a command on a given process representing a Minecraft server.
 
+    The command run will be filtered to remove control characters.
+
     Args:
         process: Process instance for a Minecraft server.
         command: The command to run.
 
     """
+    command = "".join(c for c in command if unicodedata.category(c)[0] != "C")
     process.stdin.write(command + "\n")
     process.stdin.flush()
 

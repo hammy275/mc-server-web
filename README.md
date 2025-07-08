@@ -35,4 +35,4 @@ Thanks to <https://blog.miguelgrinberg.com/post/oauth-authentication-with-flask-
 
 Admins are more powerful than normal users. They have the following extra powers:
 - Admins bypass all whitelists, allowing them to see and boot all servers.
-- Admins get access to the console through the website. This acts as direct input to the console window. As of writing, these commands do NOT have control codes filtered out!
+- Admins get access to the console through the website. This acts as direct input to the console window, with control characters filtered out.
