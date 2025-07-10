@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import sys
 from threading import Lock
 from copy import deepcopy
@@ -8,6 +9,8 @@ import time
 from typing import List, Type, Union, Tuple
 
 from Server import Server
+
+MODPACK_REGEX = re.compile(r"^.+_modpack\..+$")
 
 
 def get_env(key: str, typ: Type) -> any:
@@ -115,9 +118,18 @@ def load_servers():
                         file_whitelisted_users, file_admin_users = get_whitelisted_and_admin_users(os.path.join(folder, f, WHITELIST_FILE_NAME))
                         admins = list(set(deepcopy(folder_admin_users + file_admin_users)))
                         users = list(set(deepcopy(folder_whitelisted_users + file_whitelisted_users + admins)))
-                        new_server = Server(id_in=f, folder_path=server_folder, users=users, admins=admins)
+                        modpack_path = find_modpack_file_path(os.path.join(folder, f))
+                        new_server = Server(id_in=f, folder_path=server_folder, users=users, admins=admins,
+                                            modpack_path=modpack_path)
                         if get_server_by_name_no_lock(new_server.name) is None:
                             servers.append(new_server)
+
+
+def find_modpack_file_path(server_folder: str) -> Union[str, None]:
+    for f in os.listdir(server_folder):
+        if MODPACK_REGEX.match(f):
+            return os.path.join(server_folder, f)
+    return None
 
 
 def maybe_poll_running_servers(force_poll=False):

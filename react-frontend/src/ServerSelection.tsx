@@ -25,6 +25,19 @@ const ServerSelection = (props : ServerSelectionProps) => {
         return false;
     }
 
+    function serverHasModpack(server: string) {
+        for (const s of props.servers) {
+            if (s.name === server) {
+                return s.has_modpack;
+            }
+        }
+        return false;
+    }
+
+    function downloadModpack(server: string) {
+        console.log(server);
+    }
+
     const serverOpen = serverStarted(props.server);
     const button = <Button onClick={startStopServer}
                            variant={serverOpen ? "danger" : "success"}>{serverOpen ? "Stop Server" : "Start Server"}</Button>
@@ -44,8 +57,12 @@ const ServerSelection = (props : ServerSelectionProps) => {
                             </Form.Select>
                         </FloatingLabel>
                     </Col>
-                    <Col>
+                    <Col xs={2}>
                         {button}
+                    </Col>
+                    <Col>
+                        <Button disabled={!serverHasModpack(props.server)} variant="primary"
+                                href={`/api/download_modpack?name=${props.server}`}>Download Modpack</Button>
                     </Col>
                 </Row>
             </Col>

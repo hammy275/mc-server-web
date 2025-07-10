@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, redirect, render_template, request, send_from_directory, session, url_for, make_response
+from flask import Flask, jsonify, redirect, request, send_file, send_from_directory, session, url_for
 from typing import Any, Union
 import os
 import psutil
@@ -327,6 +327,17 @@ def run_command():
         server: Server = config.running_servers[name]
         send_command(server.process, command)
         return make_message("Ran command successfully!", 200)
+
+
+@app.route("/api/download_modpack", methods=["GET"])
+def download_modpack():
+    name: str = request.args.get("name", default=None)
+    server = config.get_server_by_name(name)
+    if server is None or not is_user_whitelisted(server):
+        return make_message(f"Server {name} not found!", 404)
+    elif not server.has_modpack():
+        return make_message(f"Server {name} does not have a modpack!", 404)
+    return send_file(server.modpack_path)
 
 
 if __name__ == "__main__":
